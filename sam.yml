@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A lambda trigger for an EMR cluster
+Resources:
+
+  KinesisProcessor:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: data_science_poc.kinesis_processor::handleRequest
+      Description: Reads events from a Kinesis stream, attempts to process | pushes failed events to SNS
+      Runtime: java8
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:*
+              - cloudwatch:*
+              - kinesis:*
+              - sns:*
+              - sqs:*
+            Resource: "*"
+      MemorySize: 512
+      Timeout: 10
+      CodeUri: target/data-science-poc-0.1.0-SNAPSHOT-standalone.jar
+      Environment:
+        Variables:
+          SNS_ARN: !Ref DeadLetterTopic
+      Events:
+        Stream:
+          Type: Kinesis
+          Properties:
+            Stream: !GetAtt ExampleStream.Arn
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON
+
+  ExampleStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      ShardCount: 1
+      RetentionPeriodHours: 24
+      Tags:
+        -
+          Key: Project
+          Value: DataScience
+
+  SNSProcessor:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: data_science_poc.sns_processor::handleRequest
+      Description: Consumes DL's from SNS, attempts to process | pushes dead DL's to SQS
+      Runtime: java8
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:*
+              - cloudwatch:*
+              - kinesis:*
+              - sns:*
+              - sqs:*
+            Resource: "*"
+      MemorySize: 512
+      Timeout: 10
+      CodeUri: target/data-science-poc-0.1.0-SNAPSHOT-standalone.jar
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt DeadLetterQueue.Arn
+      Events:
+        Topic:
+          Type: SNS
+          Properties:
+            Topic: !Ref DeadLetterTopic
+
+  DeadLetterTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: DataSciencePOC
+      TopicName: DataSciencePOC
+      Subscription:
+        -
+          Endpoint: !GetAtt SNSProcessor.Arn
+          Protocol: lambda
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: KinesisRetry
+      MessageRetentionPeriod: 345600 # Seconds (4 days)
