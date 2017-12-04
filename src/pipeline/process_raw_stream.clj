@@ -1,10 +1,10 @@
-(ns pipeline.process-stream
+(ns pipeline.process-raw-stream
   (:gen-class
     :implements [com.amazonaws.services.lambda.runtime.RequestStreamHandler])
   (:require [clojure.java.io :as io]
             [clojure.data.json :as json]
             [clojure.string :as str]
-            [data-science-poc.lib :as lib])
+            [pipeline.lib :as lib])
   (:import (java.io InputStream OutputStream OutputStreamWriter)
            (com.amazonaws.services.lambda.runtime Context)
            (com.amazonaws.services.sns.model PublishRequest)))
@@ -14,9 +14,11 @@
 (defn -handleRequest [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
   (let [w (io/writer output-stream)
         parameters (lib/parse-stream input-stream)
-        process (transduce lib/blob-xform conj (lib/extract-records parameters))]
+        process (transduce lib/blob-xform conj {:Records parameters})]
     (doseq [p process]
-      (lib/publish-sns "" ""))
+      (if (:error p)                                        ;TODO implement business logic
+        (lib/publish-sns "" ""))
+      (lib/write-dynamo ""))
+
     (println ">>> Events: " process)
     (println ">>> Parameters " parameters)))
-3

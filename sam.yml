@@ -3,10 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: A lambda trigger for an EMR cluster
 Resources:
 
-  KinesisProcessor:
+  ProcessRawStream:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.process_stream::handleRequest
+      Handler: pipeline.process_raw_stream::handleRequest
       Description: Reads events from a Kinesis stream, attempts to process | pushes failed events to SNS
       Runtime: java8
       Policies:
@@ -24,30 +24,40 @@ Resources:
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       Environment:
         Variables:
-          SNS_ARN: !Ref DeadLetterTopic
+          SNS_ARN: !Ref RetryTopic
       Events:
         Stream:
           Type: Kinesis
           Properties:
-            Stream: !GetAtt ExampleStream.Arn
+            Stream: !GetAtt RawStream.Arn
             BatchSize: 100
             StartingPosition: TRIM_HORIZON
 
-  ExampleStream:
+  RawStream:
     Type: AWS::Kinesis::Stream
     Properties:
       ShardCount: 1
-      RetentionPeriodHours: 24
+      RetentionPeriodHours: 24 # Hours
       Tags:
         -
           Key: Project
           Value: DataScience
 
-  SNSProcessor:
+#  ProcessedStream:
+#    Type: AWS::Kinesis::Stream
+#    Properties:
+#      ShardCount: 1
+#      RetentionPeriodHours: 24 # Hours
+#      Tags:
+#        -
+#          Key: Project
+#          Value: DataScience
+
+  RetryStream:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.retry_dead_letter::handleRequest
-      Description: Consumes DL's from SNS, attempts to process | pushes dead DL's to SQS
+      Handler: pipeline.retry_stream::handleRequest
+      Description: Consumes events from SNS, attempts again to process | pushes dead DL's to SQS
       Runtime: java8
       Policies:
         Statement:
@@ -69,16 +79,16 @@ Resources:
         Topic:
           Type: SNS
           Properties:
-            Topic: !Ref DeadLetterTopic
+            Topic: !Ref RetryTopic
 
-  DeadLetterTopic:
+  RetryTopic:
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: DataSciencePOC
       TopicName: DataSciencePOC
       Subscription:
         -
-          Endpoint: !GetAtt SNSProcessor.Arn
+          Endpoint: !GetAtt RetryStream.Arn
           Protocol: lambda
 
   DeadLetterQueue:

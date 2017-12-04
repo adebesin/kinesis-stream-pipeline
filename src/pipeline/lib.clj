@@ -12,16 +12,9 @@
 ;TODO create a real life json schema that i can build logic around which can be published to kinesis
 ;TODO create business logic function that defines whether a record should be sent to sns or not. Base it on whether the schema is correct. Add same logic to second lambda for extra retries
 
-(defn extract-records [records]
-  (let [recs (:Records records)]
-    (if (empty? recs)
-      (println ">>> [RECORD_EMPTY_ERROR]" recs)
-      recs)))
-
 (defn extract-blob
   [event]
-  (get-in event
-          [:kinesis :data]))
+  (get-in event [:kinesis :data]))
 
 (defn has-message? [^String message]
   (if (or (empty? message) (nil? message)) false true))
@@ -60,14 +53,15 @@
                (.getMessage error)))))
 
 (defn publish-sns [^String arn ^String message]
-  (let [sns-client (AmazonSNSAsyncClientBuilder/defaultClient)]
-    (if (= message {:message "error"})
-      (.publish sns-client
-                (PublishRequest. arn (json/write-str message)))
-      message)))
+  (.publish (AmazonSNSAsyncClientBuilder/defaultClient)
+            (PublishRequest. arn (json/write-str message))))
+
+(defn write-dynamo [^String foo]
+  ;TODO implement
+  )
 
 (def blob-xform
-  (comp (keep extract-blob) (keep decode-blob) (keep parse-blob)
+  (comp (keep extract-blob)
+        (keep decode-blob)
+        (keep parse-blob)
         (filter has-message?)))
-
-(def dead-letter-xform (comp))

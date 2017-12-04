@@ -1,4 +1,4 @@
-(ns pipeline.retry-dead-letter
+(ns pipeline.retry-stream
   (:gen-class
     :implements [com.amazonaws.services.lambda.runtime.RequestStreamHandler])
   (:require [clojure.java.io :as io]

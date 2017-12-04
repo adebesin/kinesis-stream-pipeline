@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A lambda trigger for an EMR cluster
+Resources:
+  DeadLetterQueue:
+    Properties:
+      MessageRetentionPeriod: 345600
+      QueueName: KinesisRetry
+    Type: AWS::SQS::Queue
+  ExampleStream:
+    Properties:
+      RetentionPeriodHours: 24
+      ShardCount: 1
+      Tags:
+      - Key: Project
+        Value: DataScience
+    Type: AWS::Kinesis::Stream
+  ProcessStream:
+    Properties:
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/aafcb7fa467bfe6149c9eb212382980d
+      Description: Reads events from a Kinesis stream, attempts to process | pushes
+        failed events to SNS
+      Environment:
+        Variables:
+          SNS_ARN:
+            Ref: RetryTopic
+      Events:
+        Stream:
+          Properties:
+            BatchSize: 100
+            StartingPosition: TRIM_HORIZON
+            Stream:
+              Fn::GetAtt:
+              - ExampleStream
+              - Arn
+          Type: Kinesis
+      Handler: pipeline.process_stream::handleRequest
+      MemorySize: 512
+      Policies:
+        Statement:
+        - Action:
+          - logs:*
+          - cloudwatch:*
+          - kinesis:*
+          - sns:*
+          - sqs:*
+          Effect: Allow
+          Resource: '*'
+      Runtime: java8
+      Timeout: 10
+    Type: AWS::Serverless::Function
+  RetryStream:
+    Properties:
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/aafcb7fa467bfe6149c9eb212382980d
+      DeadLetterQueue:
+        TargetArn:
+          Fn::GetAtt:
+          - DeadLetterQueue
+          - Arn
+        Type: SQS
+      Description: Consumes events from SNS, attempts again to process | pushes dead
+        DL's to SQS
+      Events:
+        Topic:
+          Properties:
+            Topic:
+              Ref: RetryTopic
+          Type: SNS
+      Handler: pipeline.retry_stream::handleRequest
+      MemorySize: 512
+      Policies:
+        Statement:
+        - Action:
+          - logs:*
+          - cloudwatch:*
+          - kinesis:*
+          - sns:*
+          - sqs:*
+          Effect: Allow
+          Resource: '*'
+      Runtime: java8
+      Timeout: 10
+    Type: AWS::Serverless::Function
+  RetryTopic:
+    Properties:
+      DisplayName: DataSciencePOC
+      Subscription:
+      - Endpoint:
+          Fn::GetAtt:
+          - RetryStream
+          - Arn
+        Protocol: lambda
+      TopicName: DataSciencePOC
+    Type: AWS::SNS::Topic
+Transform: AWS::Serverless-2016-10-31
