@@ -1,3 +1,3 @@
-# Introduction to kinesis-stream-pipeline
+# Introduction to pipeline
 
 TODO: write [great documentation](http://jacobian.org/writing/what-to-write/)

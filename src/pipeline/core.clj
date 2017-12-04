@@ -1,4 +1,4 @@
-(ns kinesis-stream-pipeline.core)
+(ns pipeline.core)
 
 (defn foo
   "I don't do a whole lot."
