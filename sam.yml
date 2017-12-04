@@ -6,7 +6,7 @@ Resources:
   KinesisProcessor:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: data_science_poc.kinesis_processor::handleRequest
+      Handler: pipeline.process_stream::handleRequest
       Description: Reads events from a Kinesis stream, attempts to process | pushes failed events to SNS
       Runtime: java8
       Policies:
@@ -21,7 +21,7 @@ Resources:
             Resource: "*"
       MemorySize: 512
       Timeout: 10
-      CodeUri: target/data-science-poc-0.1.0-SNAPSHOT-standalone.jar
+      CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       Environment:
         Variables:
           SNS_ARN: !Ref DeadLetterTopic
@@ -46,7 +46,7 @@ Resources:
   SNSProcessor:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: data_science_poc.sns_processor::handleRequest
+      Handler: pipeline.retry_dead_letter::handleRequest
       Description: Consumes DL's from SNS, attempts to process | pushes dead DL's to SQS
       Runtime: java8
       Policies:
@@ -61,7 +61,7 @@ Resources:
             Resource: "*"
       MemorySize: 512
       Timeout: 10
-      CodeUri: target/data-science-poc-0.1.0-SNAPSHOT-standalone.jar
+      CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt DeadLetterQueue.Arn
