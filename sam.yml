@@ -3,11 +3,13 @@ Transform: AWS::Serverless-2016-10-31
 Description: A lambda trigger for an EMR cluster
 Resources:
 
-  ProcessRawStream:
+  Bridge:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.process_raw_stream::handleRequest
-      Description: Reads events from a Kinesis stream, attempts to process | pushes failed events to SNS
+      Handler: pipeline.bridge::handleRequest
+      Description: >
+        Bridge between Kinesis and Step
+        Function execution
       Runtime: java8
       Policies:
         Statement:
@@ -24,7 +26,7 @@ Resources:
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       Environment:
         Variables:
-          SNS_ARN: !Ref RetryTopic
+          STATE_MACHINE_ARN: !Ref MyStateMachine
       Events:
         Stream:
           Type: Kinesis
@@ -43,21 +45,14 @@ Resources:
           Key: Project
           Value: DataScience
 
-#  ProcessedStream:
-#    Type: AWS::Kinesis::Stream
-#    Properties:
-#      ShardCount: 1
-#      RetentionPeriodHours: 24 # Hours
-#      Tags:
-#        -
-#          Key: Project
-#          Value: DataScience
-
-  RetryStream:
+  Filter:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.retry_stream::handleRequest
-      Description: Consumes events from SNS, attempts again to process | pushes dead DL's to SQS
+      Handler: pipeline.filter::handleRequest
+      Description: >
+        Filters JSON blobs from a kinesis
+        payload or pushes failed attempts
+        to SNS for retry
       Runtime: java8
       Policies:
         Statement:
@@ -72,27 +67,45 @@ Resources:
       MemorySize: 512
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
-      DeadLetterQueue:
-        Type: SQS
-        TargetArn: !GetAtt DeadLetterQueue.Arn
-      Events:
-        Topic:
-          Type: SNS
-          Properties:
-            Topic: !Ref RetryTopic
 
-  RetryTopic:
-    Type: AWS::SNS::Topic
+  MyStateMachine:
+    Type: AWS::StepFunctions::StateMachine
     Properties:
-      DisplayName: DataSciencePOC
-      TopicName: DataSciencePOC
-      Subscription:
-        -
-          Endpoint: !GetAtt RetryStream.Arn
-          Protocol: lambda
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "A Hello World AWL example using an AWS Lambda function",
+              "StartAt": "HelloWorld",
+              "States": {
+                "HelloWorld": {
+                  "Type": "Task",
+                  "Resource": "${lambdaArn}",
+                  "End": true
+                }
+              }
+            }
+          - {lambdaArn: !GetAtt [ Filter, Arn ]}
+      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
 
-  DeadLetterQueue:
-    Type: AWS::SQS::Queue
+  StatesExecutionRole:
+    Type: AWS::IAM::Role
     Properties:
-      QueueName: KinesisRetry
-      MessageRetentionPeriod: 345600 # Seconds (4 days)
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: "*"

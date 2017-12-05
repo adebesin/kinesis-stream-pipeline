@@ -1,28 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: A lambda trigger for an EMR cluster
 Resources:
-  DeadLetterQueue:
+  Bridge:
     Properties:
-      MessageRetentionPeriod: 345600
-      QueueName: KinesisRetry
-    Type: AWS::SQS::Queue
-  ExampleStream:
-    Properties:
-      RetentionPeriodHours: 24
-      ShardCount: 1
-      Tags:
-      - Key: Project
-        Value: DataScience
-    Type: AWS::Kinesis::Stream
-  ProcessStream:
-    Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/aafcb7fa467bfe6149c9eb212382980d
-      Description: Reads events from a Kinesis stream, attempts to process | pushes
-        failed events to SNS
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a68e34cc907c28aa8f3de4b69e277ed9
+      Description: 'Bridge between Kinesis and Step Function execution
+
+        '
       Environment:
         Variables:
-          SNS_ARN:
-            Ref: RetryTopic
+          STATE_MACHINE_ARN:
+            Ref: MyStateMachine
       Events:
         Stream:
           Properties:
@@ -30,10 +18,10 @@ Resources:
             StartingPosition: TRIM_HORIZON
             Stream:
               Fn::GetAtt:
-              - ExampleStream
+              - RawStream
               - Arn
           Type: Kinesis
-      Handler: pipeline.process_stream::handleRequest
+      Handler: pipeline.bridge::handleRequest
       MemorySize: 512
       Policies:
         Statement:
@@ -48,24 +36,14 @@ Resources:
       Runtime: java8
       Timeout: 10
     Type: AWS::Serverless::Function
-  RetryStream:
+  Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/aafcb7fa467bfe6149c9eb212382980d
-      DeadLetterQueue:
-        TargetArn:
-          Fn::GetAtt:
-          - DeadLetterQueue
-          - Arn
-        Type: SQS
-      Description: Consumes events from SNS, attempts again to process | pushes dead
-        DL's to SQS
-      Events:
-        Topic:
-          Properties:
-            Topic:
-              Ref: RetryTopic
-          Type: SNS
-      Handler: pipeline.retry_stream::handleRequest
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a68e34cc907c28aa8f3de4b69e277ed9
+      Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
+        to SNS for retry
+
+        '
+      Handler: pipeline.filter::handleRequest
       MemorySize: 512
       Policies:
         Statement:
@@ -80,15 +58,50 @@ Resources:
       Runtime: java8
       Timeout: 10
     Type: AWS::Serverless::Function
-  RetryTopic:
+  MyStateMachine:
     Properties:
-      DisplayName: DataSciencePOC
-      Subscription:
-      - Endpoint:
-          Fn::GetAtt:
-          - RetryStream
-          - Arn
-        Protocol: lambda
-      TopicName: DataSciencePOC
-    Type: AWS::SNS::Topic
+      DefinitionString:
+        Fn::Sub:
+        - "{\n  \"Comment\": \"A Hello World AWL example using an AWS Lambda function\"\
+          ,\n  \"StartAt\": \"HelloWorld\",\n  \"States\": {\n    \"HelloWorld\":\
+          \ {\n      \"Type\": \"Task\",\n      \"Resource\": \"${lambdaArn}\",\n\
+          \      \"End\": true\n    }\n  }\n}"
+        - lambdaArn:
+            Fn::GetAtt:
+            - Filter
+            - Arn
+      RoleArn:
+        Fn::GetAtt:
+        - StatesExecutionRole
+        - Arn
+    Type: AWS::StepFunctions::StateMachine
+  RawStream:
+    Properties:
+      RetentionPeriodHours: 24
+      ShardCount: 1
+      Tags:
+      - Key: Project
+        Value: DataScience
+    Type: AWS::Kinesis::Stream
+  StatesExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - Fn::Sub: states.${AWS::Region}.amazonaws.com
+        Version: 2012-10-17
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - lambda:InvokeFunction
+            Effect: Allow
+            Resource: '*'
+          Version: 2012-10-17
+        PolicyName: StatesExecutionPolicy
+    Type: AWS::IAM::Role
 Transform: AWS::Serverless-2016-10-31
