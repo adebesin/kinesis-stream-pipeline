@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: A lambda trigger for an EMR cluster
+Description: Real time event processing pipeline
 Resources:
   Bridge:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a68e34cc907c28aa8f3de4b69e277ed9
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a16dbda263505cfb0a2a5a66f4fbc34f
       Description: 'Bridge between Kinesis and Step Function execution
 
         '
@@ -31,6 +31,8 @@ Resources:
           - kinesis:*
           - sns:*
           - sqs:*
+          - states:*
+          - lambda:*
           Effect: Allow
           Resource: '*'
       Runtime: java8
@@ -38,7 +40,7 @@ Resources:
     Type: AWS::Serverless::Function
   Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a68e34cc907c28aa8f3de4b69e277ed9
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a16dbda263505cfb0a2a5a66f4fbc34f
       Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
         to SNS for retry
 

@@ -17,8 +17,16 @@
         parameters (json/read (io/reader input-stream) :key-fn keyword)]
     (println ">>> Initiating step functions")
     (println ">>> Parameters " parameters)
-    (.startExecutionAsync
-      (AWSStepFunctionsAsyncClientBuilder/defaultClient)
-      (doto (StartExecutionRequest.)
-        (.withStateMachineArn state-machine-arn)
-        (.withInput (json/write-str parameters))))))
+    (println ">>> SM ARN" state-machine-arn)
+    (.get
+      (.startExecutionAsync
+        (AWSStepFunctionsAsyncClientBuilder/defaultClient)  ; AWSStepFunctionsAsyncClientBuilder is depreciated?
+        (doto
+          (StartExecutionRequest.)
+          (.withStateMachineArn state-machine-arn)
+          (.withInput (json/write-str parameters)))))
+
+    ;(println ">>> Finished?" (.isDone res))
+    ;(println ">>> ARN?" (.getExecutionArn (.get res)))
+
+    ))

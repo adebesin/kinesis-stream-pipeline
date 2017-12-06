@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: A lambda trigger for an EMR cluster
+Description: Real time event processing pipeline
 Resources:
 
   Bridge:
@@ -20,6 +20,8 @@ Resources:
               - kinesis:*
               - sns:*
               - sqs:*
+              - states:*
+              - lambda:*
             Resource: "*"
       MemorySize: 512
       Timeout: 10
