@@ -1,6 +1,6 @@
 (ns pipeline.lib
   (:require [clojure.java.io :as io]
-            [clojure.data.json :as json])
+            [cheshire.core :as json])
   (:import (java.util Base64)
            (java.io InputStream)
            (com.amazonaws.services.sns.model PublishRequest)
@@ -23,9 +23,9 @@
   [^InputStream input-stream]
   (println ">>> Parsing Kinesis stream")
   (try
-    (json/read
+    (json/parse-stream
       (io/reader input-stream)
-      :key-fn keyword)
+      true)
     (catch Exception error
       (println "[STREAM_PARSE_ERROR] - *SKIPPED* :"
                input-stream
@@ -45,8 +45,7 @@
   [^String blob]
   (println ">>> Parsing JSON blob")
   (try
-    (json/read-str blob
-                   :key-fn keyword)
+    (json/parse-string blob true)
     (catch Exception error
       (println "[BLOB_PARSE_ERROR] - *SKIPPED* :"
                blob
@@ -54,7 +53,7 @@
 
 (defn publish-sns [^String arn ^String message]
   (.publish (AmazonSNSAsyncClientBuilder/defaultClient)
-            (PublishRequest. arn (json/write-str message))))
+            (PublishRequest. arn (json/generate-string message))))
 
 (defn write-dynamo [^String foo]
   ;TODO implement

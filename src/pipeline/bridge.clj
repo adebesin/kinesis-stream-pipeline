@@ -2,7 +2,7 @@
   (:gen-class
     :implements [com.amazonaws.services.lambda.runtime.RequestStreamHandler])
   (:require [clojure.java.io :as io]
-            [clojure.data.json :as json]
+            [cheshire.core :as json]
             [clojure.string :as str])
   (:import (java.io InputStream OutputStream OutputStreamWriter)
            (com.amazonaws.services.lambda.runtime Context)
@@ -14,9 +14,9 @@
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
   (let [w (io/writer output-stream)
-        parameters (json/read (io/reader input-stream) :key-fn keyword)]
+        blob (slurp (io/reader input-stream))]
     (println ">>> Initiating step functions")
-    (println ">>> Parameters " parameters)
+    (println ">>> Blob " blob)
     (println ">>> SM ARN" state-machine-arn)
     (.get
       (.startExecutionAsync
@@ -24,7 +24,7 @@
         (doto
           (StartExecutionRequest.)
           (.withStateMachineArn state-machine-arn)
-          (.withInput (json/write-str parameters)))))
+          (.withInput blob))))
 
     ;(println ">>> Finished?" (.isDone res))
     ;(println ">>> ARN?" (.getExecutionArn (.get res)))
