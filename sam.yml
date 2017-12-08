@@ -70,6 +70,27 @@ Resources:
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
 
+  Decode:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: pipeline.decode::handleRequest
+      Description: >
+        Decodes an array of messages
+      Runtime: java8
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:*
+              - cloudwatch:*
+              - kinesis:*
+              - sns:*
+              - sqs:*
+            Resource: "*"
+      MemorySize: 512
+      Timeout: 10
+      CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
+
   MyStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -78,16 +99,24 @@ Resources:
           - |-
             {
               "Comment": "A Hello World AWL example using an AWS Lambda function",
-              "StartAt": "HelloWorld",
+              "StartAt": "Filter",
               "States": {
-                "HelloWorld": {
+                "Filter": {
                   "Type": "Task",
-                  "Resource": "${lambdaArn}",
+                  "Resource": "${filterArn}",
+                  "Next": "Decode"
+                },
+                "Decode": {
+                  "Type": "Task",
+                  "Resource": "${decodeArn}",
                   "End": true
                 }
               }
             }
-          - {lambdaArn: !GetAtt [ Filter, Arn ]}
+          - {
+              filterArn: !GetAtt [ Filter, Arn ],
+              decodeArn: !GetAtt [ Decode, Arn ]
+            }
       RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
 
   StatesExecutionRole:
@@ -110,4 +139,6 @@ Resources:
               - Effect: Allow
                 Action:
                   - lambda:InvokeFunction
-                Resource: "*"
+                Resource:
+                  - !GetAtt Filter.Arn
+                  - !GetAtt Decode.Arn

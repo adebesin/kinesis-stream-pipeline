@@ -9,7 +9,7 @@
            (com.amazonaws.services.stepfunctions AWSStepFunctionsAsyncClientBuilder)
            (com.amazonaws.services.stepfunctions.model StartExecutionRequest)))
 
-(def state-machine-arn (System/getenv "STATE_MACHINE_ARN"))
+(def ^:const state-machine-arn (System/getenv "STATE_MACHINE_ARN"))
 
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
@@ -26,7 +26,10 @@
           (.withStateMachineArn state-machine-arn)
           (.withInput blob))))
 
+    ;TODO Check if async finished successfully before returning ok?
     ;(println ">>> Finished?" (.isDone res))
     ;(println ">>> ARN?" (.getExecutionArn (.get res)))
 
+    (.write w ^String (json/generate-string {:Content-Type "application/json" :statusCode 200 :body {:message "OK"}}))
+    (.flush w)
     ))

@@ -3,7 +3,7 @@ Description: Real time event processing pipeline
 Resources:
   Bridge:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a65c452aad28b2c4c9f39948df95f4f2
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
       Description: 'Bridge between Kinesis and Step Function execution
 
         '
@@ -38,9 +38,30 @@ Resources:
       Runtime: java8
       Timeout: 10
     Type: AWS::Serverless::Function
+  Decode:
+    Properties:
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
+      Description: 'Decodes an array of messages
+
+        '
+      Handler: pipeline.decode::handleRequest
+      MemorySize: 512
+      Policies:
+        Statement:
+        - Action:
+          - logs:*
+          - cloudwatch:*
+          - kinesis:*
+          - sns:*
+          - sqs:*
+          Effect: Allow
+          Resource: '*'
+      Runtime: java8
+      Timeout: 10
+    Type: AWS::Serverless::Function
   Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/a65c452aad28b2c4c9f39948df95f4f2
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
       Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
         to SNS for retry
 
@@ -65,10 +86,16 @@ Resources:
       DefinitionString:
         Fn::Sub:
         - "{\n  \"Comment\": \"A Hello World AWL example using an AWS Lambda function\"\
-          ,\n  \"StartAt\": \"HelloWorld\",\n  \"States\": {\n    \"HelloWorld\":\
-          \ {\n      \"Type\": \"Task\",\n      \"Resource\": \"${lambdaArn}\",\n\
-          \      \"End\": true\n    }\n  }\n}"
-        - lambdaArn:
+          ,\n  \"StartAt\": \"Filter\",\n  \"States\": {\n    \"Filter\": {\n    \
+          \  \"Type\": \"Task\",\n      \"Resource\": \"${filterArn}\",\n      \"\
+          Next\": \"Decode\"\n    },\n    \"Decode\": {\n      \"Type\": \"Task\"\
+          ,\n      \"Resource\": \"${lambdaArn}\",\n      \"End\": \"True\"\n    }\n\
+          \  }\n}"
+        - decodeArn:
+            Fn::GetAtt:
+            - Decode
+            - Arn
+          filterArn:
             Fn::GetAtt:
             - Filter
             - Arn
