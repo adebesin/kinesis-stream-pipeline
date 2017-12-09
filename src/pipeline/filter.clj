@@ -12,10 +12,12 @@
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
   (let [w (io/writer output-stream)
-        stream (io/reader input-stream)]
+        stream (io/reader input-stream)
+        blob ^String (json/generate-string
+                       (keep #(get-in % [:kinesis :data])
+                             (:Records (json/parse-stream stream true))))]
     (println ">>> Filtering JSON blobs")
-    (println ">>> Parameters" (json/parse-stream stream true))
-    (.write w ^String (json/generate-string
-                        (keep #(get-in % [:kinesis :data])
-                              (:Records (json/parse-stream stream true)))))
-    (.flush w)))
+    (println ">>> Blob" blob)
+    (doto w
+      (.write blob)
+      (.flush))))

@@ -13,11 +13,13 @@
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
   (let [w (io/writer output-stream)
-        stream (io/reader input-stream)]
-    (println ">>> Filtering JSON blobs")
-    (println ">>> Parameters" (json/parse-stream stream true))
-    (.write w ^String (json/generate-string
-                        (map #(String.
-                                (.. Base64 getDecoder (decode %)))
-                             (json/parse-stream stream true))))
-    (.flush w)))
+        stream (io/reader input-stream)
+        blob (json/generate-string
+               (keep #(String.
+                       (.. Base64 getDecoder (decode %)))
+                    (json/parse-stream stream true)))]
+    (println ">>> Decoding JSON blobs")
+    (println ">>> Blob" blob)
+    (doto w
+      (.write blob)
+      (.flush))))

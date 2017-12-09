@@ -3,14 +3,14 @@ Description: Real time event processing pipeline
 Resources:
   Bridge:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
       Description: 'Bridge between Kinesis and Step Function execution
 
         '
       Environment:
         Variables:
           STATE_MACHINE_ARN:
-            Ref: MyStateMachine
+            Ref: PipelineStateMachine
       Events:
         Stream:
           Properties:
@@ -40,7 +40,7 @@ Resources:
     Type: AWS::Serverless::Function
   Decode:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
       Description: 'Decodes an array of messages
 
         '
@@ -61,7 +61,7 @@ Resources:
     Type: AWS::Serverless::Function
   Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/d7563ce3566d81af80ffa8349803c4f2
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
       Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
         to SNS for retry
 
@@ -81,7 +81,7 @@ Resources:
       Runtime: java8
       Timeout: 10
     Type: AWS::Serverless::Function
-  MyStateMachine:
+  PipelineStateMachine:
     Properties:
       DefinitionString:
         Fn::Sub:
@@ -89,8 +89,8 @@ Resources:
           ,\n  \"StartAt\": \"Filter\",\n  \"States\": {\n    \"Filter\": {\n    \
           \  \"Type\": \"Task\",\n      \"Resource\": \"${filterArn}\",\n      \"\
           Next\": \"Decode\"\n    },\n    \"Decode\": {\n      \"Type\": \"Task\"\
-          ,\n      \"Resource\": \"${lambdaArn}\",\n      \"End\": \"True\"\n    }\n\
-          \  }\n}"
+          ,\n      \"Resource\": \"${decodeArn}\",\n      \"End\": true\n    }\n \
+          \ }\n}"
         - decodeArn:
             Fn::GetAtt:
             - Decode
@@ -101,18 +101,10 @@ Resources:
             - Arn
       RoleArn:
         Fn::GetAtt:
-        - StatesExecutionRole
+        - PipelineStateMachineExecutionRole
         - Arn
     Type: AWS::StepFunctions::StateMachine
-  RawStream:
-    Properties:
-      RetentionPeriodHours: 24
-      ShardCount: 1
-      Tags:
-      - Key: Project
-        Value: DataScience
-    Type: AWS::Kinesis::Stream
-  StatesExecutionRole:
+  PipelineStateMachineExecutionRole:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
@@ -129,8 +121,22 @@ Resources:
           - Action:
             - lambda:InvokeFunction
             Effect: Allow
-            Resource: '*'
+            Resource:
+            - Fn::GetAtt:
+              - Filter
+              - Arn
+            - Fn::GetAtt:
+              - Decode
+              - Arn
           Version: 2012-10-17
         PolicyName: StatesExecutionPolicy
     Type: AWS::IAM::Role
+  RawStream:
+    Properties:
+      RetentionPeriodHours: 24
+      ShardCount: 1
+      Tags:
+      - Key: Project
+        Value: DataScience
+    Type: AWS::Kinesis::Stream
 Transform: AWS::Serverless-2016-10-31

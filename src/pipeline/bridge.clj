@@ -9,7 +9,7 @@
            (com.amazonaws.services.stepfunctions AWSStepFunctionsAsyncClientBuilder)
            (com.amazonaws.services.stepfunctions.model StartExecutionRequest)))
 
-(def ^:const state-machine-arn (System/getenv "STATE_MACHINE_ARN"))
+(def state-machine-arn (System/getenv "STATE_MACHINE_ARN"))
 
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
@@ -30,6 +30,9 @@
     ;(println ">>> Finished?" (.isDone res))
     ;(println ">>> ARN?" (.getExecutionArn (.get res)))
 
-    (.write w ^String (json/generate-string {:Content-Type "application/json" :statusCode 200 :body {:message "OK"}}))
-    (.flush w)
-    ))
+    (doto w
+      (.write ^String (json/generate-string
+                        {:Content-Type "application/json"
+                         :statusCode 200
+                         :body {:message "OK"}}))
+      (.flush))))

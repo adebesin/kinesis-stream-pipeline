@@ -28,7 +28,7 @@ Resources:
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       Environment:
         Variables:
-          STATE_MACHINE_ARN: !Ref MyStateMachine
+          STATE_MACHINE_ARN: !Ref PipelineStateMachine
       Events:
         Stream:
           Type: Kinesis
@@ -91,7 +91,7 @@ Resources:
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
 
-  MyStateMachine:
+  PipelineStateMachine:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       DefinitionString:
@@ -117,9 +117,9 @@ Resources:
               filterArn: !GetAtt [ Filter, Arn ],
               decodeArn: !GetAtt [ Decode, Arn ]
             }
-      RoleArn: !GetAtt [ StatesExecutionRole, Arn ]
+      RoleArn: !GetAtt [ PipelineStateMachineExecutionRole, Arn ]
 
-  StatesExecutionRole:
+  PipelineStateMachineExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
