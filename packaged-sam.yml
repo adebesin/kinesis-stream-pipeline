@@ -3,7 +3,7 @@ Description: Real time event processing pipeline
 Resources:
   Bridge:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
       Description: 'Bridge between Kinesis and Step Function execution
 
         '
@@ -40,7 +40,7 @@ Resources:
     Type: AWS::Serverless::Function
   Decode:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
       Description: 'Decodes an array of messages
 
         '
@@ -61,7 +61,7 @@ Resources:
     Type: AWS::Serverless::Function
   Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/593386a6e04fba358ecffc83d2dc0693
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
       Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
         to SNS for retry
 

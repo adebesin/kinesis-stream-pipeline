@@ -12,7 +12,7 @@
 
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
-  (let [w (io/writer output-stream)
+  (let [os (io/writer output-stream)
         stream (io/reader input-stream)
         blob (json/generate-string
                (keep #(String.
@@ -20,6 +20,6 @@
                     (json/parse-stream stream true)))]
     (println ">>> Decoding JSON blobs")
     (println ">>> Blob" blob)
-    (doto w
+    (doto os
       (.write blob)
       (.flush))))
