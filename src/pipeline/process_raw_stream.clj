@@ -2,7 +2,7 @@
   (:gen-class
     :implements [com.amazonaws.services.lambda.runtime.RequestStreamHandler])
   (:require [clojure.java.io :as io]
-            [clojure.data.json :as json]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [pipeline.lib :as lib])
   (:import (java.io InputStream OutputStream OutputStreamWriter)

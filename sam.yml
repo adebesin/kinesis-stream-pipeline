@@ -1,13 +1,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: A lambda trigger for an EMR cluster
+Description: Real time event processing pipeline
 Resources:
 
-  ProcessRawStream:
+  Bridge:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.process_raw_stream::handleRequest
-      Description: Reads events from a Kinesis stream, attempts to process | pushes failed events to SNS
+      Handler: pipeline.bridge::handleRequest
+      Description: >
+        Bridge between Kinesis and Step
+        Function execution
       Runtime: java8
       Policies:
         Statement:
@@ -18,13 +20,15 @@ Resources:
               - kinesis:*
               - sns:*
               - sqs:*
+              - states:*
+              - lambda:*
             Resource: "*"
       MemorySize: 512
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
       Environment:
         Variables:
-          SNS_ARN: !Ref RetryTopic
+          STATE_MACHINE_ARN: !Ref PipelineStateMachine
       Events:
         Stream:
           Type: Kinesis
@@ -43,21 +47,14 @@ Resources:
           Key: Project
           Value: DataScience
 
-#  ProcessedStream:
-#    Type: AWS::Kinesis::Stream
-#    Properties:
-#      ShardCount: 1
-#      RetentionPeriodHours: 24 # Hours
-#      Tags:
-#        -
-#          Key: Project
-#          Value: DataScience
-
-  RetryStream:
+  Filter:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: pipeline.retry_stream::handleRequest
-      Description: Consumes events from SNS, attempts again to process | pushes dead DL's to SQS
+      Handler: pipeline.filter::handleRequest
+      Description: >
+        Filters JSON blobs from a kinesis
+        payload or pushes failed attempts
+        to SNS for retry
       Runtime: java8
       Policies:
         Statement:
@@ -72,27 +69,76 @@ Resources:
       MemorySize: 512
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
-      DeadLetterQueue:
-        Type: SQS
-        TargetArn: !GetAtt DeadLetterQueue.Arn
-      Events:
-        Topic:
-          Type: SNS
-          Properties:
-            Topic: !Ref RetryTopic
 
-  RetryTopic:
-    Type: AWS::SNS::Topic
+  Decode:
+    Type: AWS::Serverless::Function
     Properties:
-      DisplayName: DataSciencePOC
-      TopicName: DataSciencePOC
-      Subscription:
-        -
-          Endpoint: !GetAtt RetryStream.Arn
-          Protocol: lambda
+      Handler: pipeline.decode::handleRequest
+      Description: >
+        Decodes an array of messages
+      Runtime: java8
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:*
+              - cloudwatch:*
+              - kinesis:*
+              - sns:*
+              - sqs:*
+            Resource: "*"
+      MemorySize: 512
+      Timeout: 10
+      CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
 
-  DeadLetterQueue:
-    Type: AWS::SQS::Queue
+  PipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
     Properties:
-      QueueName: KinesisRetry
-      MessageRetentionPeriod: 345600 # Seconds (4 days)
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "A Hello World AWL example using an AWS Lambda function",
+              "StartAt": "Filter",
+              "States": {
+                "Filter": {
+                  "Type": "Task",
+                  "Resource": "${filterArn}",
+                  "Next": "Decode"
+                },
+                "Decode": {
+                  "Type": "Task",
+                  "Resource": "${decodeArn}",
+                  "End": true
+                }
+              }
+            }
+          - {
+              filterArn: !GetAtt [ Filter, Arn ],
+              decodeArn: !GetAtt [ Decode, Arn ]
+            }
+      RoleArn: !GetAtt [ PipelineStateMachineExecutionRole, Arn ]
+
+  PipelineStateMachineExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: StatesExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt Filter.Arn
+                  - !GetAtt Decode.Arn
