@@ -98,7 +98,7 @@ Resources:
         !Sub
           - |-
             {
-              "Comment": "A Hello World AWL example using an AWS Lambda function",
+              "Comment": "Kinesis event processing pipeline",
               "StartAt": "Filter",
               "States": {
                 "Filter": {
