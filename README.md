@@ -1,14 +1,7 @@
 # pipeline
 
-A Clojure library designed to ... well, that part is up to you.
-
-## Usage
-
-FIXME
+Real time Kinesis event processing pipeline using Kinesis and Clojure Step Functions
 
 ## License
 
-Copyright © 2017 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the Eclipse Public License either version 1.0
