@@ -1,6 +1,6 @@
 # pipeline
 
-Real time Kinesis event processing pipeline using Kinesis and Clojure Step Functions
+Real time event processing pipeline using Kinesis and Clojure Step Functions
 
 ## License
 
