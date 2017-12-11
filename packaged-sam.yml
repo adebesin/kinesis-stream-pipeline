@@ -3,7 +3,7 @@ Description: Real time event processing pipeline
 Resources:
   Bridge:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/f7e0bb4e0199ac21c3c97899e72fdd58
       Description: 'Bridge between Kinesis and Step Function execution
 
         '
@@ -40,7 +40,7 @@ Resources:
     Type: AWS::Serverless::Function
   Decode:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/f7e0bb4e0199ac21c3c97899e72fdd58
       Description: 'Decodes an array of messages
 
         '
@@ -61,7 +61,7 @@ Resources:
     Type: AWS::Serverless::Function
   Filter:
     Properties:
-      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/4eb49627dac2d3b092bfcc7cb2436f21
+      CodeUri: s3://sdghs-ecomm-aws-dev-sandbox/f7e0bb4e0199ac21c3c97899e72fdd58
       Description: 'Filters JSON blobs from a kinesis payload or pushes failed attempts
         to SNS for retry
 
@@ -85,12 +85,11 @@ Resources:
     Properties:
       DefinitionString:
         Fn::Sub:
-        - "{\n  \"Comment\": \"A Hello World AWL example using an AWS Lambda function\"\
-          ,\n  \"StartAt\": \"Filter\",\n  \"States\": {\n    \"Filter\": {\n    \
-          \  \"Type\": \"Task\",\n      \"Resource\": \"${filterArn}\",\n      \"\
-          Next\": \"Decode\"\n    },\n    \"Decode\": {\n      \"Type\": \"Task\"\
-          ,\n      \"Resource\": \"${decodeArn}\",\n      \"End\": true\n    }\n \
-          \ }\n}"
+        - "{\n  \"Comment\": \"Kinesis event processing pipeline\",\n  \"StartAt\"\
+          : \"Filter\",\n  \"States\": {\n    \"Filter\": {\n      \"Type\": \"Task\"\
+          ,\n      \"Resource\": \"${filterArn}\",\n      \"Next\": \"Decode\"\n \
+          \   },\n    \"Decode\": {\n      \"Type\": \"Task\",\n      \"Resource\"\
+          : \"${decodeArn}\",\n      \"End\": true\n    }\n  }\n}"
         - decodeArn:
             Fn::GetAtt:
             - Decode

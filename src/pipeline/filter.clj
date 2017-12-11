@@ -2,22 +2,21 @@
   (:gen-class
     :implements [com.amazonaws.services.lambda.runtime.RequestStreamHandler])
   (:require [clojure.java.io :as io]
-            [cheshire.core :as json]
-            [clojure.string :as str]
-            [pipeline.lib :as lib])
+            [cheshire.core :as json])
   (:import (java.io InputStream OutputStream OutputStreamWriter)
-           (com.amazonaws.services.lambda.runtime Context)
-           (com.amazonaws.services.sns.model PublishRequest)))
+           (com.amazonaws.services.lambda.runtime Context)))
 
 (defn -handleRequest
   [this ^InputStream input-stream ^OutputStream output-stream ^Context context]
-  (let [w (io/writer output-stream)
-        stream (io/reader input-stream)
-        blob ^String (json/generate-string
-                       (keep #(get-in % [:kinesis :data])
-                             (:Records (json/parse-stream stream true))))]
+  (let [writer (io/writer output-stream)
+        reader (io/reader input-stream)
+        blob (json/generate-string
+               (keep #(get-in % [:kinesis :data])
+                     (:Records (json/parse-stream reader true))))]
     (println ">>> Filtering JSON blobs")
     (println ">>> Blob" blob)
-    (doto w
+    (doto writer
       (.write blob)
       (.flush))))
+
+
