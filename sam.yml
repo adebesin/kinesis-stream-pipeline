@@ -26,6 +26,9 @@ Resources:
       MemorySize: 512
       Timeout: 10
       CodeUri: target/pipeline-0.1.0-SNAPSHOT-standalone.jar
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt BridgeDeadLetterQueue.Arn
       Environment:
         Variables:
           STATE_MACHINE_ARN: !Ref PipelineStateMachine
@@ -46,6 +49,12 @@ Resources:
         -
           Key: Project
           Value: DataScience
+
+  BridgeDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: BridgeRetry
+      MessageRetentionPeriod: 345600 # Seconds (4 days)
 
   Filter:
     Type: AWS::Serverless::Function
